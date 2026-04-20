@@ -1,0 +1,17 @@
+[package]
+name = "distill-tui"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform terminal UI for distill and distill-render"
+
+[dependencies]
+anyhow = "1.0"
+console = "0.15"
+dialoguer = "0.11"
+distill_core = { path = "../distill", package = "distill" }
+indicatif = "0.17"
+zip = "0.6"
+
+[target.'cfg(windows)'.build-dependencies]
+image = "0.25"
+winres = "0.1"

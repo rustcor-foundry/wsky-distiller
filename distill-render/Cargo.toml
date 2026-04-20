@@ -1,0 +1,14 @@
+[package]
+name = "distill-render"
+version = "0.1.0"
+edition = "2021"
+description = "Headless Chrome renderer with stealth for JS-heavy sites - companion to distill"
+
+[dependencies]
+chromiumoxide = { version = "0.7", features = ["tokio-runtime"] }
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4.5", features = ["derive"] }
+rand = "0.8"
+anyhow = "1.0"
+futures = "0.3"
+distill = { path = "../distill" }

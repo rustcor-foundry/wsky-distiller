@@ -1,0 +1,35 @@
+[package]
+name = "distill"
+version = "1.0.0"
+edition = "2021"
+authors = ["Your Name <you@example.com>"]
+description = "Fast, ethical webpage to clean Markdown for AI consumption"
+license = "MIT"
+repository = "https://github.com/yourname/distill"
+readme = "README.md"
+keywords = ["markdown", "web-scraping", "llm", "rag", "cli"]
+categories = ["command-line-utilities", "web-programming"]
+
+[lib]
+name = "distill_core"
+path = "src/lib.rs"
+
+[features]
+default = []
+fast = ["dep:fast_html2md"]
+
+[dependencies]
+reqwest = { version = "0.12", features = ["blocking", "rustls-tls", "socks"] }
+dom_smoothie = "0.17"
+html-to-markdown-rs = "3.2"
+clap = { version = "4.5", features = ["derive"] }
+chrono = "0.4"
+anyhow = "1.0"
+indicatif = "0.17"
+url = "2.5"
+rayon = "1.10"
+robotstxt = "0.2"
+fast_html2md = { version = "0.0.61", optional = true }
+scraper = "0.24"
+html2md = "0.2"
+regex = "1.12"

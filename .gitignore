@@ -1,0 +1,21 @@
+# Rust
+target/
+**/target/
+
+# Local outputs
+distilled/
+distill-output/
+**/distilled/
+**/distill-output/
+
+# Temp and logs
+*.log
+*.tmp
+*.bak
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Optional local assets
+distill-tui/assets/whiskey.ico
