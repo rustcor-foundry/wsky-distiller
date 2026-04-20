@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  rust-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Test distill core and CLI
+        working-directory: distill
+        run: cargo test
+
+      - name: Check distill-render
+        working-directory: distill-render
+        run: cargo check
+
+      - name: Check distill-gui
+        working-directory: distill-gui
+        run: cargo check
+
+      - name: Test distill-tui
+        working-directory: distill-tui
+        run: cargo test
