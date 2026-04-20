@@ -30,8 +30,9 @@ distill rendered.html -o clean.md
 distill-gui
 ```
 
+- Experimental on graphics-capable systems
 - Add URLs manually or upload file
-- Set per-job options
+- Choose output folder and render options
 - Click Start
 - Export in multiple formats
 

@@ -2,10 +2,10 @@
 name = "distill"
 version = "1.0.0"
 edition = "2021"
-authors = ["Your Name <you@example.com>"]
-description = "Fast, ethical webpage to clean Markdown for AI consumption"
+authors = ["Paul Walker"]
+description = "Fast, ethical webpage to clean Markdown"
 license = "MIT"
-repository = "https://github.com/yourname/distill"
+repository = "https://gitea.w-sky.net/rustcor/wsky-distiller"
 readme = "README.md"
 keywords = ["markdown", "web-scraping", "llm", "rag", "cli"]
 categories = ["command-line-utilities", "web-programming"]

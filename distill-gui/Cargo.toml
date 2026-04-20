@@ -2,7 +2,10 @@
 name = "distill-gui"
 version = "0.1.0"
 edition = "2021"
+authors = ["Paul Walker"]
 description = "Norton Commander style tool for converting websites to clean Markdown"
+license = "MIT"
+repository = "https://gitea.w-sky.net/rustcor/wsky-distiller"
 
 [dependencies]
 eframe = { version = "0.27", features = ["wgpu"] }

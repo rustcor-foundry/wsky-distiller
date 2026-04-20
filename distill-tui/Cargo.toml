@@ -2,7 +2,10 @@
 name = "distill-tui"
 version = "0.1.0"
 edition = "2021"
+authors = ["Paul Walker"]
 description = "Cross-platform terminal UI for distill and distill-render"
+license = "MIT"
+repository = "https://gitea.w-sky.net/rustcor/wsky-distiller"
 
 [dependencies]
 anyhow = "1.0"

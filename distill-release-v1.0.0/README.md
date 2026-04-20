@@ -1,13 +1,16 @@
 # distill v1.0.0 — Release
 
-**The complete ecosystem for converting websites to clean Markdown for AI consumption.**
+**The complete toolkit for converting websites to clean Markdown.**
+
+Publisher: RustCor Foundry
+Author: Paul Walker
 
 ## What's Included
 
 - `distill` — Lightweight, fast HTTP distiller (pure Rust)
 - `distill-render` — Headless Chrome renderer for JS-heavy sites that outputs final Markdown
 - `distill-tui` — Cross-platform terminal UI for guided runs without any page preview
-- `distill-gui` — "Norton Commander" style desktop GUI with rich export options
+- `distill-gui` — Experimental desktop GUI for graphics-capable machines
 
 ## Quick Start
 
@@ -30,7 +33,7 @@ chmod +x install.sh
 - `robots.txt` respect + proxy rotation (HTTP + SOCKS5)
 - Advanced stealth rendering for SPAs
 - Cross-platform terminal workflow for servers and basic machines
-- Queue-based desktop GUI workflow
+- Optional experimental desktop GUI workflow
 - Export formats: ZIP, combined Markdown, clipboard copy, individual files
 - Local HTML file or stdin ingestion for CLI workflows
 

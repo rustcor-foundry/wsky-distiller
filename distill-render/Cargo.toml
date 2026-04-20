@@ -2,7 +2,10 @@
 name = "distill-render"
 version = "0.1.0"
 edition = "2021"
+authors = ["Paul Walker"]
 description = "Headless Chrome renderer with stealth for JS-heavy sites - companion to distill"
+license = "MIT"
+repository = "https://gitea.w-sky.net/rustcor/wsky-distiller"
 
 [dependencies]
 chromiumoxide = { version = "0.7", features = ["tokio-runtime"] }

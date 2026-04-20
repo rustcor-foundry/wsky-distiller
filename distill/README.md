@@ -1,8 +1,11 @@
 # distill
 
-**Fast, ethical webpage → clean Markdown** for AI consumption.
+**Fast, ethical webpage -> clean Markdown** for practical publishing, research, and archive workflows.
 
 The shared extraction and conversion engine is exposed as the `distill_core` library crate.
+
+Publisher: RustCor Foundry
+Author: Paul Walker
 
 ## Features
 
@@ -18,7 +21,7 @@ The shared extraction and conversion engine is exposed as the `distill_core` lib
 ## Installation
 
 ```bash
-cargo install --git https://github.com/yourname/distill
+cargo build --release
 ```
 
 ## Usage

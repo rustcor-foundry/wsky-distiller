@@ -105,6 +105,8 @@ mod tests {
         .unwrap();
 
         assert!(markdown.contains("title: 'Example'"));
+        assert!(markdown.contains("author: 'Paul Walker'"));
+        assert!(markdown.contains("publisher: 'RustCor Foundry'"));
         assert!(markdown.contains("source: 'https://example.com/post'"));
         assert!(markdown.contains("Hello"));
         assert!(markdown.contains("World"));

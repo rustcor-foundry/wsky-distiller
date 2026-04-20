@@ -9,6 +9,8 @@ pub fn build_frontmatter(article: &Article, source: Option<&str>) -> String {
     let mut fm = String::new();
     fm.push_str("---\n");
     fm.push_str(&format!("title: {}\n", yaml_quote(&article.title)));
+    fm.push_str("author: 'Paul Walker'\n");
+    fm.push_str("publisher: 'RustCor Foundry'\n");
     if let Some(src) = source {
         fm.push_str(&format!("source: {}\n", yaml_quote(src)));
     }
@@ -137,6 +139,8 @@ mod tests {
         let frontmatter = build_frontmatter(&article, Some("https://example.com?q=1"));
 
         assert!(frontmatter.contains("title: 'Bob''s \"Example\"'"));
+        assert!(frontmatter.contains("author: 'Paul Walker'"));
+        assert!(frontmatter.contains("publisher: 'RustCor Foundry'"));
         assert!(frontmatter.contains("source: 'https://example.com?q=1'"));
         assert!(frontmatter.contains("excerpt: 'It''s safe'"));
     }

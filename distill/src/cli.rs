@@ -4,7 +4,7 @@ use clap::Parser;
 #[command(
     name = "distill",
     version = "1.0.0",
-    about = "Fast, ethical webpage to clean Markdown for AI"
+    about = "Fast, ethical webpage to clean Markdown"
 )]
 pub struct Args {
     /// Single URL to distill

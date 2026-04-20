@@ -4,11 +4,12 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 use zip::write::FileOptions;
 
 struct DistillApp {
@@ -55,7 +56,7 @@ impl Default for DistillApp {
         Self {
             urls: vec![],
             new_url: String::new(),
-            output_dir: "distilled".to_string(),
+            output_dir: default_output_dir().to_string_lossy().to_string(),
             use_render: false,
             use_stealth: true,
             delay_ms: 500,
@@ -69,7 +70,7 @@ impl Default for DistillApp {
 
 impl Drop for DistillApp {
     fn drop(&mut self) {
-        self.stop_worker();
+        self.signal_stop();
     }
 }
 
@@ -164,7 +165,7 @@ impl eframe::App for DistillApp {
                     .add_enabled(self.processing, egui::Button::new("Stop"))
                     .clicked()
                 {
-                    self.stop_worker();
+                    self.signal_stop();
                     self.status = "Stopping...".to_string();
                 }
             });
@@ -186,6 +187,12 @@ impl eframe::App for DistillApp {
 
             ui.separator();
             ui.horizontal(|ui| {
+                if ui.button("Open Output Folder").clicked() {
+                    match open::that(&self.output_dir) {
+                        Ok(()) => self.status = format!("Opened {}", self.output_dir),
+                        Err(e) => self.status = format!("Open folder failed: {}", e),
+                    }
+                }
                 if ui.button("Export All as ZIP").clicked() {
                     match export_zip(Path::new(&self.output_dir)) {
                         Ok(path) => self.status = format!("ZIP created at {}", path.display()),
@@ -255,14 +262,24 @@ impl DistillApp {
                 let out_file = cfg.output_dir.join(output_filename(url));
 
                 let result = if cfg.use_render {
-                    run_render_then_distill(&tools, url, &out_file, cfg.use_stealth)
+                    run_render_then_distill_cancellable(
+                        &tools,
+                        url,
+                        &out_file,
+                        cfg.use_stealth,
+                        &cancel_worker,
+                    )
                 } else {
-                    run_distill_direct(&tools, url, &out_file)
+                    run_distill_direct_cancellable(&tools, url, &out_file, &cancel_worker)
                 };
 
                 match result {
                     Ok(()) => {
-                        let _ = tx.send(WorkerEvent::Result(format!("OK: {}", url)));
+                        let _ = tx.send(WorkerEvent::Result(format!(
+                            "OK: {} -> {}",
+                            url,
+                            out_file.display()
+                        )));
                     }
                     Err(e) => {
                         let _ = tx.send(WorkerEvent::Result(format!("FAIL: {} - {}", url, e)));
@@ -287,15 +304,10 @@ impl DistillApp {
         self.status = "Worker started".to_string();
     }
 
-    fn stop_worker(&mut self) {
+    fn signal_stop(&mut self) {
         if let Some(worker) = &mut self.worker {
             worker.cancel.store(true, Ordering::Relaxed);
-            if let Some(join) = worker.join.take() {
-                let _ = join.join();
-            }
         }
-        self.worker = None;
-        self.processing = false;
     }
 
     fn poll_worker_events(&mut self) {
@@ -332,13 +344,16 @@ impl DistillApp {
     }
 }
 
-fn run_distill_direct(tools: &ToolPaths, url: &str, output_file: &Path) -> Result<(), String> {
-    let out = Command::new(&tools.distill)
-        .arg(url)
-        .arg("-o")
-        .arg(output_file)
-        .output()
-        .map_err(|e| format!("failed to start distill: {}", e))?;
+fn run_distill_direct_cancellable(
+    tools: &ToolPaths,
+    url: &str,
+    output_file: &Path,
+    cancel: &Arc<AtomicBool>,
+) -> Result<(), String> {
+    let mut command = Command::new(&tools.distill);
+    command.arg(url).arg("-o").arg(output_file);
+
+    let out = cancellable_output(&mut command, Some(cancel))?;
 
     if out.status.success() {
         Ok(())
@@ -347,11 +362,12 @@ fn run_distill_direct(tools: &ToolPaths, url: &str, output_file: &Path) -> Resul
     }
 }
 
-fn run_render_then_distill(
+fn run_render_then_distill_cancellable(
     tools: &ToolPaths,
     url: &str,
     output_file: &Path,
     stealth: bool,
+    cancel: &Arc<AtomicBool>,
 ) -> Result<(), String> {
     let mut render_cmd = Command::new(&tools.render);
     render_cmd.arg(url).arg("-o").arg(output_file);
@@ -359,9 +375,7 @@ fn run_render_then_distill(
         render_cmd.arg("--stealth").arg("false");
     }
 
-    let render_out = render_cmd
-        .output()
-        .map_err(|e| format!("failed to start distill-render: {}", e))?;
+    let render_out = cancellable_output(&mut render_cmd, Some(cancel))?;
 
     if !render_out.status.success() {
         return Err(String::from_utf8_lossy(&render_out.stderr)
@@ -371,43 +385,120 @@ fn run_render_then_distill(
     Ok(())
 }
 
+fn cancellable_output(
+    command: &mut Command,
+    cancel: Option<&Arc<AtomicBool>>,
+) -> Result<std::process::Output, String> {
+    let mut child = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("failed to start process: {}", e))?;
+
+    wait_for_child(&mut child, cancel)
+}
+
+fn wait_for_child(
+    child: &mut Child,
+    cancel: Option<&Arc<AtomicBool>>,
+) -> Result<std::process::Output, String> {
+    use std::io::Read;
+
+    loop {
+        if cancel.is_some_and(|flag| flag.load(Ordering::Relaxed)) {
+            let _ = child.kill();
+            return Err("cancelled".to_string());
+        }
+
+        match child.try_wait().map_err(|e| format!("wait failed: {}", e))? {
+            Some(status) => {
+                let mut stdout = Vec::new();
+                let mut stderr = Vec::new();
+
+                if let Some(mut pipe) = child.stdout.take() {
+                    pipe.read_to_end(&mut stdout)
+                        .map_err(|e| format!("failed reading stdout: {}", e))?;
+                }
+                if let Some(mut pipe) = child.stderr.take() {
+                    pipe.read_to_end(&mut stderr)
+                        .map_err(|e| format!("failed reading stderr: {}", e))?;
+                }
+
+                return Ok(std::process::Output {
+                    status,
+                    stdout,
+                    stderr,
+                });
+            }
+            None => thread::sleep(Duration::from_millis(100)),
+        }
+    }
+}
+
 fn resolve_tool_paths() -> Result<ToolPaths, String> {
     let exe = std::env::consts::EXE_SUFFIX;
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(Path::to_path_buf));
     let gui_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let workspace_root = gui_root
-        .parent()
-        .ok_or_else(|| "Cannot resolve workspace root".to_string())?;
+    let workspace_root = gui_root.parent().map(Path::to_path_buf);
 
-    let distill_debug = workspace_root
-        .join("distill")
-        .join("target")
-        .join("debug")
-        .join(format!("distill{}", exe));
-    let distill_release = workspace_root
-        .join("distill")
-        .join("target")
-        .join("release")
-        .join(format!("distill{}", exe));
-    let render_debug = workspace_root
-        .join("distill-render")
-        .join("target")
-        .join("debug")
-        .join(format!("distill-render{}", exe));
-    let render_release = workspace_root
-        .join("distill-render")
-        .join("target")
-        .join("release")
-        .join(format!("distill-render{}", exe));
+    let mut distill_candidates = Vec::new();
+    let mut render_candidates = Vec::new();
 
-    let distill = first_existing(&[distill_debug, distill_release])
+    if let Some(dir) = &exe_dir {
+        distill_candidates.push(dir.join(format!("distill{}", exe)));
+        render_candidates.push(dir.join(format!("distill-render{}", exe)));
+    }
+
+    if let Some(root) = &workspace_root {
+        distill_candidates.push(
+            root.join("distill")
+                .join("target")
+                .join("release")
+                .join(format!("distill{}", exe)),
+        );
+        distill_candidates.push(
+            root.join("distill")
+                .join("target")
+                .join("debug")
+                .join(format!("distill{}", exe)),
+        );
+        render_candidates.push(
+            root.join("distill-render")
+                .join("target")
+                .join("release")
+                .join(format!("distill-render{}", exe)),
+        );
+        render_candidates.push(
+            root.join("distill-render")
+                .join("target")
+                .join("debug")
+                .join(format!("distill-render{}", exe)),
+        );
+    }
+
+    let distill = first_existing(&distill_candidates)
         .unwrap_or_else(|| PathBuf::from(format!("distill{}", exe)));
-    let render = first_existing(&[render_debug, render_release])
+    let render = first_existing(&render_candidates)
         .unwrap_or_else(|| PathBuf::from(format!("distill-render{}", exe)));
 
     Ok(ToolPaths {
         distill: distill.to_string_lossy().to_string(),
         render: render.to_string_lossy().to_string(),
     })
+}
+
+fn default_output_dir() -> PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            return parent.join("distill-output");
+        }
+    }
+
+    std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("distill-output")
 }
 
 fn first_existing(paths: &[PathBuf]) -> Option<PathBuf> {
